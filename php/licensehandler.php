@@ -1,5 +1,5 @@
 <?php
-require_once( 'license.php' );
+require_once( 'license/license.php' );
 
 $license = new License();
 
