@@ -264,6 +264,14 @@ class Manager extends Log
 		return $this->generateChart( "Trace", $columnNames, $rows );
 	}
 
+	public function generateIniChart( $section )
+	{
+		$columnNames = "";
+		$rows = Util::getIniRows( $columnNames, $section );
+	
+		return $this->generateChart( "Ini", $columnNames, $rows );
+	}
+	
 	public function generateChart( $tableName, $columnNames, &$rows )
 	{
 		$columns = explode( ",", $columnNames );

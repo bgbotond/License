@@ -133,6 +133,10 @@ if( $_SERVER['REQUEST_METHOD'] == 'POST' )
 	{
 		$content = $manager->generateTraceChart( "" );
 	}
+	else if( isset( $_POST['Ini'] ))
+	{
+		$content = $manager->generateIniChart( "" );
+	}
 }
 ?>
 
@@ -155,6 +159,7 @@ if( $_SERVER['REQUEST_METHOD'] == 'POST' )
 					<INPUT type = "submit" name = "ValueTab"   value = "ValueTab"   style="height:23px; width:80px; margin-top:5;">
 					<INPUT type = "submit" name = "UserTab"    value = "UserTab"    style="height:23px; width:80px; margin-top:5;">
 					<INPUT type = "submit" name = "Trace"      value = "Trace"      style="height:23px; width:80px; margin-top:5;">
+					<INPUT type = "submit" name = "Ini"        value = "Ini"        style="height:23px; width:80px; margin-top:5;">
 				</FORM>
 			</div>
 

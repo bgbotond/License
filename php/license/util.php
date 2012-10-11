@@ -100,7 +100,48 @@ class Util
 		
 		return $default;
 	}
+
+	/*
+		get ini file as rows to generate chart
+	*/
+	public static function getIniRows( &$columnNames, $section = "" )
+	{
+		if( self::$mSettings === false )
+		{
+			$iniFile = "settings.ini";
+			$mutex = new Mutex();
+			$mutex->init( $iniFile );
+			$mutex->lock();
+			self::$mSettings = parse_ini_file( $iniFile, true );
+			$mutex->unlock();
+			$mutex = null;
+		}
 	
+		$rows = array();
+		$columnNames = "Section, Key, Value";
+		
+		foreach( self::$mSettings as $iniSection => $iniValues )
+		{
+			if( $section != "" 
+			 && $iniSection != $section )
+			{
+				continue;
+			}
+
+			foreach( $iniValues as $iniKey => $iniValue )
+			{
+				$row = array();
+				$row['Section'] = $iniSection;
+				$row['Key']     = $iniKey;
+				$row['Value']   = $iniValue;
+
+				array_push( $rows, $row );
+			}
+		}
+
+		return $rows;
+	}
+
 	/*
 		generate a given length string
 	*/
