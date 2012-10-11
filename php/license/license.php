@@ -174,7 +174,7 @@ class License extends Log
 		
 		if( $dataDecrypt == "" )
 		{
-			$this->mWarning = $this->mTrace->write( $this->getClient(), "data couldn't be decrypted with private key: '$data'", Trace::WARNING );
+			$this->mWarning = $this->mTrace->write( $this->getClient(), "data couldn't be decrypted with private key", Trace::WARNING );
 			return false;
 		}
 		
