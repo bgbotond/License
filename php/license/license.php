@@ -13,6 +13,7 @@ class License extends Log
 	private $mCrypter      = null;
 	private $mProduct      = null;
 	private $mClient       = null;
+	private $mWarning      = "";
 
 	function __construct()
 	{
@@ -85,7 +86,9 @@ class License extends Log
 		
 		if( $this->processInput( $input, $response ) == false )
 		{
+			$this->sendMail();
 			$this->log( "license process failed" );
+//			Util::addValue( $response, "REASON", $this->mWarning, ":::" );
 			Util::addValue( $response, "RESULT", "FAIL", ":::" );
 		}
 		else
@@ -102,7 +105,7 @@ class License extends Log
 	private function processInput( $input, &$response )
 	{
 		$this->setClient( $_SERVER[REMOTE_ADDR] );
-		
+
 		$this->mTrace->write( $this->getClient(), "process request started from client" );
 
 		if( ! is_array( $input )
@@ -120,6 +123,8 @@ class License extends Log
 			$this->mTrace->write( $this->getClient(), "process product failed '$value'", Trace::WARNING );
 			return false;
 		}
+		
+		$this->mTrace->write( $this->getClient(), "process product: '" . $this->getProduct() . "'" );
 		$this->log( "process product success" );
 
 		// data
@@ -140,19 +145,13 @@ class License extends Log
 	{
 		if( $product == "" )
 		{
-			$this->mTrace->write( $this->getClient(), "empty product", Trace::WARNING );
+			$this->mWarning = $this->mTrace->write( $this->getClient(), "empty product", Trace::WARNING );
 			return false;
 		}
 
 		if( $this->mDatabase->findProduct( $product ) == false )
 		{
-			$this->mTrace->write( $this->getClient(), "no product found '$product'", Trace::WARNING );
-			return false;
-		}
-		
-		if( $this->mProduct != null )
-		{
-			$this->mTrace->write( $this->getClient(), "already processed product '$product'", Trace::WARNING );
+			$this->mWarning = $this->mTrace->write( $this->getClient(), "no product found '$product'", Trace::WARNING );
 			return false;
 		}
 		
@@ -162,17 +161,11 @@ class License extends Log
 	
 	private function processData( $data, &$response )
 	{
-		if( $this->getProduct() == null )
-		{
-			$this->mTrace->write( $this->getClient(), "empty product", Trace::WARNING );
-			return false;
-		}
-		
 		$privateKey = $this->mDatabase->getValue( $this->getProduct(), Util::getIni( "KEY", "PRIVATE_KEY" ));
 		
 		if( $privateKey == "" )
 		{
-			$this->mTrace->write( $this->getClient(), "database problem - key is missing '" . Util::getIni( "KEY", "PRIVATE_KEY" ) . "'", Trace::WARNING );
+			$this->mWarning = $this->mTrace->write( $this->getClient(), "database problem - key is missing '" . Util::getIni( "KEY", "PRIVATE_KEY" ) . "'", Trace::WARNING );
 			return false;
 		}
 		
@@ -181,7 +174,7 @@ class License extends Log
 		
 		if( $dataDecrypt == "" )
 		{
-			$this->mTrace->write( $this->getClient(), "data couldn't be decrypted with private key", Trace::WARNING );
+			$this->mWarning = $this->mTrace->write( $this->getClient(), "data couldn't be decrypted with private key: '$data'", Trace::WARNING );
 			return false;
 		}
 		
@@ -215,7 +208,7 @@ class License extends Log
 				break;
 			default     :
 				{
-					$this->mTrace->write( $this->getClient(), "unknown request data key '$key'", Trace::WARNING );
+					$this->mWarning = $this->mTrace->write( $this->getClient(), "unknown request data key '$key'", Trace::WARNING );
 					return false;
 				}
 				break;
@@ -240,7 +233,7 @@ class License extends Log
 		}
 		else if( intval( $lastTime ) > intval( $time ))
 		{
-			$this->mTrace->write( $this->getClient(), "last connect time problem '$lastTime' > '$time'", Trace::WARNING );
+			$this->mWarning = $this->mTrace->write( $this->getClient(), "last connect time problem '$lastTime' > '$time'", Trace::WARNING );
 			return false;
 		}
 		
@@ -258,7 +251,7 @@ class License extends Log
 		}
 		else if( $lastMAC != $mac )
 		{
-			$this->mTrace->write( $this->getClient(), "last connect MAC problem '$lastMAC' != '$mac'", Trace::WARNING );
+			$this->mWarning = $this->mTrace->write( $this->getClient(), "last connect MAC problem '$lastMAC' != '$mac'", Trace::WARNING );
 			return false;
 		}
 
@@ -277,7 +270,7 @@ class License extends Log
 		 && intval( $dateNow ) > intval( $dateExpire ))
 		{
 			$this->log( "product expiredcheck expire date: $dateExpire (now: $dateNow)" );
-			$this->mTrace->write( $this->getClient(), "license date dexpired '$dateExpire'", Trace::WARNING );
+			$this->mWarning = $this->mTrace->write( $this->getClient(), "license date dexpired '$dateExpire'", Trace::WARNING );
 			return false;
 		}
 
@@ -291,8 +284,21 @@ class License extends Log
 		if( $timeLimit != "" )
 		{
 			Util::addValue( $response, Util::getIni( "KEY", "TIME_LIMIT" ), $timeLimit, ":::" );
-			$this->mTrace->write( $this->getClient(), "time limit set '$timeLimit'", Trace::WARNING );
+			$this->mTrace->write( $this->getClient(), "time limit set '$timeLimit'" );
 		}
+	}
+	
+	private function sendMail()
+	{
+		$mMessage  = "Generated warning email sent by License server\n";
+		$mMessage .= "----------------------------------------------\n";
+		$mMessage .= "Product: '" . $this->getProduct() . "'\n";
+		$mMessage .= "Time: '"    . Util::getTime()     . "'\n";
+		$mMessage .= "Client: '"  . $this->getClient()  . "'\n";
+		$mMessage .= "Message: "  . $this->mWarning;
+		
+		if( Util::mail( "License server warning", $mMessage ) == false )
+			$this->mTrace->write( $this->getClient(), "couldn't sent mail", Trace::WARNING );
 	}
 }
 

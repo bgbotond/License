@@ -2,6 +2,7 @@
 
 require_once( 'mutex.php' );
 require_once( 'log.php'   );
+require_once( 'util.php'  );
 
 /*
 	trace layout
@@ -30,11 +31,6 @@ class Trace extends Log
 		$this->setPrefix( "Trace" );
 	}
 
-	private function getTime()
-	{
-		return date( "Y.m.d H.i.s", time());
-	}
-	
 	public function setLog( $log )
 	{
 		parent::setLog( $log );
@@ -57,6 +53,7 @@ class Trace extends Log
 		else if( file_exists( $fileName ) == false )
 		{
 			touch( $fileName );
+			chmod( $fileName, 0600 );  
 			$this->log( "file '$fileName' has been created" );
 		}
 
@@ -71,11 +68,14 @@ class Trace extends Log
 	{
 		$this->log( "write into file '$this->mFileName'" );
 		$this->mMutex->lock();
-		$time = $this->getTime();
+		$time = Util::getTime();
 		$file = fopen( $this->mFileName, "a" );
-		fwrite( $file, $time . "|" . $type . "|" . $owner . "|" . $text . "\n" );
+		$line = $time . "|" . $type . "|" . $owner . "|" . $text . "\n";
+		fwrite( $file, $line );
 		fclose( $file );
 		$this->mMutex->unlock();
+		
+		return $line;
 	}
 
 	public function read( $type = "" )
@@ -102,6 +102,47 @@ class Trace extends Log
 		fclose( $file );
 		$this->mMutex->unlock();
 	}
+	
+	public function getRows( &$columnNames, $type = "" )
+	{
+		$rows = array();
+		$columnNames = "Time, Level, Owner, Message";
+		
+		$this->log( "getRows from file '$this->mFileName'" );
+		$this->mMutex->lock();
+
+		$file = fopen( $this->mFileName, "r" );
+
+		while( feof( $file ) == false )
+		{
+			$line = fgets( $file, 1024 );
+
+			if( $type != "" )
+			{
+				if( strpos( $line, $type ) !== 20 )	// 20 -> begining of type after time information
+				{
+					continue;
+				}
+			}
+			
+			if( $line == "" )
+				continue;
+			
+			$entries = explode( "|", $line );
+			$row = array();
+			$row['Time']    = $entries[0];
+			$row['Level']   = $entries[1];
+			$row['Owner']   = $entries[2];
+			$row['Message'] = $entries[3];
+
+			array_push( $rows, $row );
+		}
+
+		fclose( $file );
+		$this->mMutex->unlock();
+		
+		return $rows;
+	}	
 };
 
 ?>

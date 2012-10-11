@@ -51,7 +51,7 @@ class Mutex extends Log
 
 		if(( $this->mFileHandler = fopen( $this->mFileName, "rw" )) == false )
 		{
-			$this->log( "error opening mutex file" );
+			$this->log( "error opening mutex file: '$this->mFileName'" );
 			return false;
 		}
 		

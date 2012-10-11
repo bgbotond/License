@@ -1,5 +1,7 @@
 <?php
 
+require_once( 'mutex.php' );
+
 class Util
 {
 	private static $mSettings = false;
@@ -12,7 +14,7 @@ class Util
 	{
 		if( file_exists( $path ) == false )
 		{
-			$mode = 0755;
+			$mode = 0700;
 			mkdir( $path, $mode, TRUE );
 		}
 	}
@@ -78,7 +80,13 @@ class Util
 	{
 		if( self::$mSettings === false )
 		{
-			self::$mSettings = parse_ini_file( 'settings.ini', true );
+			$iniFile = "settings.ini";
+			$mutex = new Mutex();
+			$mutex->init( $iniFile );
+			$mutex->lock();
+			self::$mSettings = parse_ini_file( $iniFile, true );
+			$mutex->unlock();
+			$mutex = null;
 		}
 	
 		if( array_key_exists( $section, self::$mSettings ))
@@ -103,6 +111,29 @@ class Util
 			$code = substr( $code, 0, $length );
 			
 		return $code;
+	}
+	
+	/*
+		send mail
+	*/
+	public static function mail( $subject, $message )
+	{
+		$to = self::getIni( "ENVIRONMENT", "MAIL_TO" );
+		
+		if( $to != "" )
+		{
+			return mail( $to, $subject, $message );
+		}
+		
+		return false;
+	}
+	
+	/*
+		get time
+	*/
+	public static function getTime()
+	{
+		return date( "Y.m.d H.i.s", time());
 	}
 }
 

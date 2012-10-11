@@ -37,21 +37,19 @@ class Crypter extends Log
 		/* Extract the private key from $res to $privKey */
 		openssl_pkey_export( $res, $privKey );
 		
-		echo "privatekey: $privKey<BR>";
-
 		/* Extract the public key from $res to $pubKeyArr */
 		$pubKeyArr = openssl_pkey_get_details( $res );
 		$pubKey = $pubKeyArr["key"];
 
-		echo "publickey: $pubKey<BR>";
-		
 		$file = fopen( $privateKeyPath, "w" );
 		fwrite( $file, $privKey );
 		fclose( $file );
-
+		chmod( $privateKeyPath, 0600 );  
+		
 		$file = fopen( $publicKeyPath, "w" );
 		fwrite( $file, $pubKey );
 		fclose( $file );
+		chmod( $publicKeyPath, 0600 );  
 
 		$this->setPrivateKeyPath( $privateKeyPath );
 		$this->setPublicKeyPath( $publicKeyPath );
@@ -112,6 +110,12 @@ class Crypter extends Log
 
 	public function doPrivateEncrypt( $text )
 	{
+		if( $this->mPrivateKeyPath == null )
+		{
+			$this->log( "no private key set" );
+			return "";
+		}
+	
 		$this->log( "private encrypt with text: '$text'" );
 		$originalArray = $this->cutter( $text, $this->getMaxLength());
 		$privKeyFile = file_get_contents( $this->getPrivateKeyPath());
@@ -137,6 +141,12 @@ class Crypter extends Log
 
 	public function doPrivateDecrypt( $text )
 	{
+		if( $this->mPrivateKeyPath == null )
+		{
+			$this->log( "no private key set" );
+			return "";
+		}
+	
 		$this->log( "private decrypt with text: '$text'" );
 		$encryptedArray = explode( $this->getDelimiter(), $text );
 		$privKeyFile = file_get_contents( $this->getPrivateKeyPath());
@@ -157,6 +167,12 @@ class Crypter extends Log
 	
 	public function doPublicEncrypt( $text )
 	{
+		if( $this->mPublicKeyPath == null )
+		{
+			$this->log( "no public public key set" );
+			return "";
+		}
+	
 		$this->log( "public encrypt with text: '$text'" );
 		$originalArray = $this->cutter( $text, $this->getMaxLength());
 		$publicKeyFile = file_get_contents( $this->getPublicKeyPath());
@@ -182,6 +198,12 @@ class Crypter extends Log
 
 	public function doPublicDecrypt( $text )
 	{
+		if( $this->mPublicKeyPath == null )
+		{
+			$this->log( "no public key set" );
+			return "";
+		}
+	
 		$this->log( "public decrypt with text: '$text'" );
 		$encryptedArray = explode( $this->getDelimiter(), $text );
 		$publicKeyFile = file_get_contents( $this->getPublicKeyPath());

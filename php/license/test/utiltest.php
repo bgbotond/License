@@ -49,4 +49,10 @@ echo "generate $length length string: $string<br>";
 $length = 0;
 $string = Util::genString( $length );
 echo "generate full string: $string<br>";
+echo "-------------------------------------<br>";
+
+if( Util::mail( "test email", "this is a test mail from php" ))
+	echo "send mail successfully<br>";
+else
+	echo "send mail unsuccessfully<br>";
 ?>

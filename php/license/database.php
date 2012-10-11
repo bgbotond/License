@@ -6,13 +6,13 @@ require_once( 'log.php'   );
 /*
 	database tables
 	
-	+----------------+  +-----------------+
-	|   ProductTab   |  |    ValueTab     |
-	+----------------+  +-----------------+
-	| _id    integer |  | _id     integer |
-	| _name  string  |  | _key    string  |
-	| _desc  string  |  | _value  string  |
-	+----------------+  +-----------------+
+	+----------------+  +-----------------+ +---------------+
+	|   ProductTab   |  |    ValueTab     | |    UserTab    |
+	+----------------+  +-----------------+ +---------------+
+	| _id    integer |  | _id     integer | | _user  string |
+	| _name  string  |  | _key    string  | | _pass  string |
+	| _desc  string  |  | _value  string  | |               |
+	+----------------+  +-----------------+ +---------------+
 */
 
 class Database extends Log
@@ -44,8 +44,9 @@ class Database extends Log
 		if( ! $rows )
 		{
 			$this->log( "create tables" );
-			$this->getDBLite()->exec( "CREATE TABLE ValueTab  ( _id INTEGER            , _key  STRING        NOT NULL, _value STRING )" );
 			$this->getDBLite()->exec( "CREATE TABLE ProductTab( _id INTEGER PRIMARY KEY, _name STRING UNIQUE NOT NULL, _desc  STRING )" );
+			$this->getDBLite()->exec( "CREATE TABLE ValueTab  ( _id INTEGER            , _key  STRING        NOT NULL, _value STRING )" );
+			$this->getDBLite()->exec( "CREATE TABLE UserTab   ( _user STRING UNIQUE NOT NULL, _pass STRING NOT NULL                  )" );
 		}
 	}
 
@@ -86,6 +87,7 @@ class Database extends Log
 		else if( file_exists( $fileName ) == false )
 		{
 			touch( $fileName );
+			chmod( $fileName, 0600 );  
 			$this->log( "file '$fileName' has been created" );
 		}
 
@@ -93,6 +95,58 @@ class Database extends Log
 		
 		$this->mFileName = $fileName;
 		$this->log( "file '$this->mFileName' inited" );
+		return true;
+	}
+
+	// -----------------------
+	// AnyTab functions
+	// -----------------------
+	public function getRows( $tabname, $columns, $where )
+	{
+		$this->open();
+		$rows = $this->_getRows( $tabname, $columns, $where );
+		$this->close();
+
+		return $rows;
+	}
+
+	private function _getRows( $tableName, $columns, $where )
+	{
+		$this->log( "check parameter" );
+		
+		if( $this->_checkTabExist( $tableName ) == false )
+		{
+			return array();
+		}
+		
+		$sql = "SELECT $columns FROM $tableName";
+		if( $where != "" )
+			$sql .= " WHERE $where";
+		$sql .= " ORDER BY $columns";
+		
+		$this->log( $sql );
+		
+		$result = $this->getDBLite()->query( $sql );
+		$rows = $result->fetchAll( PDO::FETCH_ASSOC );
+		if( $rows )
+		{
+			return $rows;
+		}
+	
+		return array();
+	}
+	
+	private function _checkTabExist( $tableName )
+	{
+		// check tableName
+		$result = $this->getDBLite()->query( "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '$tableName'" );
+		$rows = $result->fetchAll( PDO::FETCH_ASSOC );
+		if( ! $rows )
+		{
+			$this->log( "tablename doesn't exist '$tablename'" );
+			return false;
+		}
+
 		return true;
 	}
 	
@@ -108,6 +162,15 @@ class Database extends Log
 		return $ret;
 	}
 
+	public function updProduct( $name, $desc )
+	{
+		$this->open();
+		$ret = $this->_updProduct( $name, $desc );
+		$this->close();
+		
+		return $ret;
+	}
+	
 	public function delProduct( $name )
 	{
 		$this->open();
@@ -132,7 +195,7 @@ class Database extends Log
 	public function getProductAll()
 	{
 		$this->open();
-		$rows = $this->_getProductAll( $name );
+		$rows = $this->_getProductAll();
 		$this->close();
 		
 		return $rows;
@@ -156,6 +219,23 @@ class Database extends Log
 		return true;
 	}
 
+	private function _updProduct( $name, $desc )
+	{
+		$this->log( "updProduct $name" );
+		$id = $this->_findProduct( $name );
+		
+		if( $id == -1 )
+		{
+			$this->log( "product not found" );
+			return false;
+		}
+
+		$this->getDBLite()->exec( "UPDATE ProductTab SET _desc = '$desc' WHERE _id = $id" );
+		$this->log( "update" );
+		
+		return true;
+	}
+	
 	private function _delProduct( $name )
 	{
 		$this->log( "delProduct $name" );
@@ -209,7 +289,7 @@ class Database extends Log
 			echo "$row[_id] - $row[_name] - $row[_desc]<BR>";
 		}
 	}
-	
+
 	// -----------------------
 	//	ValueTab functions
 	// -----------------------
@@ -338,6 +418,172 @@ class Database extends Log
 		}
 	}
 
+	// -----------------------
+	// UserTab functions
+	// -----------------------
+	public function addUser( $user, $pass )
+	{
+		$this->open();
+		$ret = $this->_addUser( $user, $pass );
+		$this->close();
+
+		return $ret;
+	}
+
+	public function updUser( $user, $pass )
+	{
+		$this->open();
+		$ret = $this->_updUser( $user, $pass );
+		$this->close();
+
+		return $ret;
+	}
+
+	public function delUser( $user )
+	{
+		$this->open();
+		$ret = $this->_delUser( $user );
+		$this->close();
+		
+		return $ret;
+	}
+	
+	public function findUser( $user )
+	{
+		$this->open();
+		$id = $this->_findUser( $user );
+		$this->close();
+		
+		if( $id == -1 )
+			return false;
+		
+		return true;
+	}
+
+	public function checkUser( $user, $pass )
+	{
+		$this->open();
+		$ret = $this->_checkUser( $user, $pass );
+		$this->close();
+
+		return $ret;
+	}
+	
+	public function getUserAll()
+	{
+		$this->open();
+		$rows = $this->_getUserAll();
+		$this->close();
+		
+		return $rows;
+	}
+	
+	private function _addUser( $user, $pass )
+	{
+		$this->log( "addUser '$user', '$pass'" );
+		
+		if( $this->_findUser( $user ) == true )
+		{
+			$this->log( "user already exist '$user'" );
+			return false;
+		}
+		
+		$this->getDBLite()->exec( "INSERT INTO UserTab VALUES ( '$user', '$pass' )" );
+		$this->log( "inserted" );
+		
+		return true;
+	}
+
+	private function _updUser( $user, $pass )
+	{
+		$this->log( "updUser '$user'" );
+
+		if( $this->_findUser( $user ) == false )
+		{
+			$this->log( "user not found '$user'" );
+			return false;
+		}
+
+		$this->getDBLite()->exec( "UPDATE UserTab SET _pass = '$pass' WHERE _user = '$user'" );
+		$this->log( "deleted" );
+		
+		return true;
+	}
+
+	private function _delUser( $user )
+	{
+		$this->log( "delUser '$user'" );
+
+		if( $this->_findUser( $user ) == false )
+		{
+			$this->log( "user not found '$user'" );
+			return false;
+		}
+
+		$this->getDBLite()->exec( "DELETE FROM UserTab WHERE _user = '$user'" );
+		$this->log( "deleted" );
+		
+		return true;
+	}
+	
+	private function _findUser( $user )
+	{
+		$this->log( "findUser '$user'" );
+		$result = $this->getDBLite()->query( "SELECT _user, _pass FROM UserTab WHERE _user = '$user'" );
+		$rows = $result->fetch( PDO::FETCH_ASSOC );
+		if( $rows )
+		{
+			$this->log( "found '$user'" );
+			return true;
+		}
+		
+		$this->log( "not found" );
+		return false;
+	}
+
+	private function _checkUser( $user, $pass )
+	{
+		$this->log( "checkUser '$user' $pass" );
+		$result = $this->getDBLite()->query( "SELECT _user, _pass FROM UserTab WHERE _user = '$user'" );
+		$rows = $result->fetchAll( PDO::FETCH_ASSOC );
+		if( $rows )
+		{
+			foreach( $rows as $row )
+			{
+				if( $row[_user] == $user
+				 && $row[_pass] == $pass )
+				{
+					$this->log( "found '$user'" );
+					return true;
+				}
+			}
+		}
+		
+		$this->log( "not found" );
+		return false;
+	}
+	
+	private function _getUserAll()
+	{
+		$this->log( "getUserAll" );
+		$result = $this->getDBLite()->query( "SELECT * FROM UserTab ORDER BY _user" );
+		$rows = $result->fetchAll( PDO::FETCH_ASSOC );
+
+		$this->log( "return array" );
+		return $rows;
+	}
+	
+	public function printUserAll()
+	{
+		$this->log( "printUserAll" );
+		$rows = $this->getUserAll();
+
+		foreach( $rows as $row )
+		{
+			echo "$row[_user] - $row[_pass]<BR>";
+		}
+	}	
+	
 	private function _getNextId()
 	{
 		$this->log( "getNextId" );
