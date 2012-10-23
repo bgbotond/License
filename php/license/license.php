@@ -82,7 +82,7 @@ class License extends Log
 		
 		$this->log( "license process started" );
 		
-		Util::addValue( $response, "RANDOM", Util::genString(), ":::" );
+//		Util::addValue( $response, "RANDOM", Util::genString(), ":::" );
 		
 		if( $this->processInput( $input, $response ) == false )
 		{
@@ -203,7 +203,11 @@ class License extends Log
 				break;
 			case "RANDOM" :
 				{
-					// do nothing
+					if( $this->checkUserRandom( $value ) == false )
+						return false;
+					
+					// give back the same random value
+					Util::addValue( $response, "RANDOM", $value, ":::" );
 				}
 				break;
 			default     :
@@ -227,33 +231,44 @@ class License extends Log
 	{
 		$lastTime = $this->mDatabase->getValue( $this->getProduct(), Util::getIni( "KEY", "LAST_TIME" ));
 		
-		if( $lastTime == "" )
-		{
-			$this->mDatabase->addValue( $this->getProduct(), Util::getIni( "KEY", "LAST_TIME" ), $time );
-		}
-		else if( intval( $lastTime ) > intval( $time ))
+		if( $lastTime != "" && intval( $lastTime ) > intval( $time ))
 		{
 			$this->mWarning = $this->mTrace->write( $this->getClient(), "last connect time problem '$lastTime' > '$time'", Trace::WARNING );
 			return false;
 		}
 		
+		$this->mDatabase->addValue( $this->getProduct(), Util::getIni( "KEY", "LAST_TIME" ), $time );
+		
 		return true;
 	}
-	
+
 	private function checkUserMac( $mac )
 	{
 		// check MAC address possibility
 		$lastMAC = $this->mDatabase->getValue( $this->getProduct(), Util::getIni( "KEY", "MAC" ) );
 		
-		if( $lastMAC == "" )
-		{
-			$this->mDatabase->addValue( $this->getProduct(), Util::getIni( "KEY", "MAC" ), $mac );
-		}
-		else if( $lastMAC != $mac )
+		if( $lastMAC != "" && $lastMAC != $mac )
 		{
 			$this->mWarning = $this->mTrace->write( $this->getClient(), "last connect MAC problem '$lastMAC' != '$mac'", Trace::WARNING );
 			return false;
 		}
+		
+		$this->mDatabase->addValue( $this->getProduct(), Util::getIni( "KEY", "MAC" ), $mac );
+
+		return true;
+	}
+
+	private function checkUserRandom( $random )
+	{
+		$lastRandom = $this->mDatabase->getValue( $this->getProduct(), Util::getIni( "KEY", "LAST_RANDOM" ));
+		
+		if( $lastRandom != "" && $lastRandom == $random )
+		{
+			$this->mWarning = $this->mTrace->write( $this->getClient(), "last connect random value is the same '$random'", Trace::WARNING );
+			return false;
+		}
+
+		$this->mDatabase->addValue( $this->getProduct(), Util::getIni( "KEY", "LAST_RANDOM" ), $random );
 
 		return true;
 	}

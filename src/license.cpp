@@ -1,4 +1,5 @@
 #include "cinder/app/AppBasic.h"
+#include "cinder/Xml.h"
 #include <boost/date_time/local_time/local_time.hpp>
 #include <boost/foreach.hpp>
 #include <boost/tokenizer.hpp>
@@ -24,6 +25,31 @@ const string License::SEPARATOR = ":::";
 
 const string License::TIME_LIMIT = "TIME_LIMIT";
 const string License::RESULT     = "RESULT";
+
+void License::init( ci::fs::path &xmlData )
+{
+	XmlTree doc( loadFile( xmlData ));
+
+	if( doc.hasChild( "License" ))
+	{
+		XmlTree xmlLicense = doc.getChild( "License" );
+
+		string product = xmlLicense.getAttributeValue<string>( "Product", ""  );
+		string key     = xmlLicense.getAttributeValue<string>( "Key"    , ""  );
+
+		setProduct( product );
+		setKey( getAssetPath( key ));
+
+		for( XmlTree::Iter child = xmlLicense.begin(); child != xmlLicense.end(); ++child )
+		{
+			if( child->getTag() == "Server" )
+			{
+				string server = child->getAttributeValue<string>( "Name" );
+				addServer( server );
+			}
+		}
+	}
+}
 
 void License::setKey( const fs::path &publicKey )
 {
@@ -77,10 +103,11 @@ bool License::process()
 	string data;
 	string dataEncrypt;
 	string dataDecrypt;
+	string dataRandom = genString();
 
-	addValue( value, "RANDOM", genString());
-	addValue( value, "TIME"  , getDate() + getTime());
-//	addValue( value, "MAC"   , getMac());
+	addValue( value, RANDOM, dataRandom );
+	addValue( value, TIME  , getDate() + getTime());
+//	addValue( value, MAC   , getMac());
 
 	values2String( value, data );
 	dataEncrypt = Crypter::rsaPublicEncrypt( getKey(), data );
@@ -103,7 +130,8 @@ bool License::process()
 
 	string2Values( dataDecrypt, mResult );
 
-	if( mResult[ RESULT ] == "PASS" )
+	if( mResult[ RANDOM ] == dataRandom
+	 && mResult[ RESULT ] == "PASS" )
 		return true;
 
 	return false;

@@ -22,6 +22,8 @@ class License
 	static const std::string SEPARATOR;
 
 public:
+	void                init( ci::fs::path &xmlData );
+
 	void                setKey( const ci::fs::path &publicKey );
 	const ci::fs::path &getKey() const;
 
