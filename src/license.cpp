@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include "cinder/app/AppBasic.h"
 #include "cinder/Xml.h"
 #include <boost/date_time/local_time/local_time.hpp>
@@ -68,6 +70,18 @@ const fs::path &License::getKeyPath() const
 
 void License::setKey( const std::string &publicKey )
 {
+	mPublicKey = publicKey;
+}
+
+void License::setKey( ci::DataSourceRef dataSource )
+{
+	Buffer buf = dataSource->getBuffer();
+	size_t dataSize = buf.getDataSize();
+	shared_ptr<char> bufString( new char[dataSize+1], checked_array_deleter<char>() );
+	memcpy( bufString.get(), buf.getData(), buf.getDataSize() );
+	bufString.get()[dataSize] = 0;
+	string publicKey( bufString.get() );
+
 	mPublicKey = publicKey;
 }
 
@@ -227,13 +241,33 @@ void License::values2String( const Values &src, string &dst )
 
 string License::getTime()
 {
-	int time = 
-	boost::posix_time::second_clock::local_time().time_of_day().hours() * 10000 +
-	boost::posix_time::second_clock::local_time().time_of_day().minutes() * 100 +
-	boost::posix_time::second_clock::local_time().time_of_day().seconds();
+	int hour   = boost::posix_time::second_clock::local_time().time_of_day().hours();
+	int minute = boost::posix_time::second_clock::local_time().time_of_day().minutes();
+	int second = boost::posix_time::second_clock::local_time().time_of_day().seconds();
 
 	stringstream out;
-	out << time;
+
+	if( hour == 0 )
+		out << "00";
+	else if( hour < 10 )
+		out << "0" << hour;
+	else
+		out << hour;
+
+	if( minute == 0 )
+		out << "00";
+	else if( minute < 10 )
+		out << "0" << minute;
+	else
+		out << minute;
+
+	if( second == 0 )
+		out << "00";
+	else if( second < 10 )
+		out << "0" << second;
+	else
+		out << second;
+
 	return out.str();
 }
 
